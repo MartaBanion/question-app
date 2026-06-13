@@ -39,3 +39,5 @@ web/backend/.venv/
 !.env.example
 *.tsbuildinfo
 web/frontend/src/*.js
+web/*.db
+web/*.db-*
