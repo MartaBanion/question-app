@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60 * 24 * 7
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
+    admin_username: str = "admin"
+    public_access: bool = True
+    public_username: str = "public"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

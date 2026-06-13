@@ -48,6 +48,13 @@ def migrate_db() -> None:
                 conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP WITH TIME ZONE"))
             else:
                 conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at DATETIME"))
+        if settings.admin_username:
+            conn.execute(text("UPDATE users SET is_admin = :value"), {"value": False})
+            conn.execute(
+                text("UPDATE users SET is_admin = :value WHERE username = :username"),
+                {"value": True, "username": settings.admin_username},
+            )
+            return
         admin_count = conn.execute(text("SELECT COUNT(*) FROM users WHERE is_admin = :value"), {"value": True}).scalar() or 0
         if admin_count == 0:
             first_id = conn.execute(text("SELECT MIN(id) FROM users")).scalar()

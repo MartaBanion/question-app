@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.database import get_db
 from app.deps import current_user
 from app.models import User
@@ -19,8 +20,11 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> Token:
     exists = db.scalar(select(User).where(User.username == payload.username))
     if exists:
         raise HTTPException(status_code=400, detail="用户名已存在")
-    user_count = db.scalar(select(func.count()).select_from(User)) or 0
-    user = User(username=payload.username, password_hash=hash_password(payload.password), is_admin=user_count == 0)
+    user = User(
+        username=payload.username,
+        password_hash=hash_password(payload.password),
+        is_admin=payload.username == settings.admin_username,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -38,5 +42,5 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 
 
 @router.get("/me", response_model=UserOut)
-def me(user: User = Depends(current_user)) -> User:
-    return user
+def me(user: User = Depends(current_user)) -> UserOut:
+    return UserOut(id=user.id, username=user.username, is_admin=user.username == settings.admin_username)

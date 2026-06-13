@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.database import get_db
 from app.deps import admin_user
 from app.models import AnswerRecord, Question, QuestionBank, User, WrongQuestion
@@ -26,7 +27,7 @@ def overview(db: Session = Depends(get_db), _: User = Depends(admin_user)) -> di
         rows.append({
             "id": user.id,
             "username": user.username,
-            "is_admin": user.is_admin,
+            "is_admin": user.username == settings.admin_username,
             "created_at": user.created_at,
             "last_login_at": user.last_login_at,
             "bank_count": bank_count,

@@ -1,14 +1,15 @@
 <template>
-  <section v-if="!authed" class="auth card">
+  <section v-if="loginVisible" class="auth card">
     <div class="header">
-      <h1>题练通 Web</h1>
-      <p>登录后导入题库并开始多人在线刷题。</p>
+      <h1>管理员登录</h1>
+      <p>普通刷题无需登录，后台管理需要管理员账号。</p>
     </div>
     <input class="input" v-model="loginForm.username" placeholder="用户名" />
     <input class="input" v-model="loginForm.password" placeholder="密码" type="password" />
     <div class="row">
       <button class="primary" @click="login">登录</button>
-      <button class="secondary" @click="register">注册</button>
+      <button class="secondary" @click="register">注册管理员</button>
+      <button class="secondary" @click="loginVisible=false">取消</button>
     </div>
     <div v-if="error" class="alert error">{{ error }}</div>
   </section>
@@ -27,7 +28,8 @@
         <button :class="{active: page==='stats'}" @click="page='stats'; loadStats()">学习记录</button>
         <button v-if="me?.is_admin" :class="{active: page==='admin'}" @click="page='admin'; loadAdmin()">后台管理</button>
       </nav>
-      <button class="secondary" @click="doLogout">退出登录</button>
+      <button v-if="me?.is_admin" class="secondary" @click="doLogout">退出管理员</button>
+      <button v-else class="secondary" @click="showLogin">管理员登录</button>
     </aside>
 
     <main class="main">
@@ -163,9 +165,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { api, logout, setToken, token } from './api'
+import { api, logout, setToken } from './api'
 
-const authed = ref(Boolean(token()))
+const loginVisible = ref(false)
 const page = ref('banks')
 const error = ref('')
 const loginForm = reactive({ username: '', password: '' })
@@ -193,10 +195,11 @@ async function run(fn: () => Promise<void>) {
   try { await fn() } catch (e: any) { error.value = e.message }
 }
 async function loadMe() { me.value = await api('/auth/me') }
-async function afterAuth() { authed.value = true; await loadMe(); await loadBanks() }
-async function login() { await run(async () => { const data = await api('/auth/login', { method: 'POST', body: new URLSearchParams({ username: loginForm.username, password: loginForm.password }) }); setToken(data.access_token); await afterAuth() }) }
-async function register() { await run(async () => { const data = await api('/auth/register', { method: 'POST', body: JSON.stringify(loginForm) }); setToken(data.access_token); await afterAuth() }) }
-function doLogout() { logout(); authed.value = false; me.value = null }
+async function afterAuth() { try { await loadMe() } catch { logout(); await loadMe() }; await loadBanks() }
+async function login() { await run(async () => { const data = await api('/auth/login', { method: 'POST', body: new URLSearchParams({ username: loginForm.username, password: loginForm.password }) }); setToken(data.access_token); loginVisible.value = false; await afterAuth() }) }
+async function register() { await run(async () => { const data = await api('/auth/register', { method: 'POST', body: JSON.stringify(loginForm) }); setToken(data.access_token); loginVisible.value = false; await afterAuth() }) }
+async function doLogout() { logout(); me.value = null; page.value = 'banks'; await afterAuth() }
+function showLogin() { error.value = ''; loginVisible.value = true }
 async function loadBanks() { await run(async () => { banks.value = await api('/banks') }) }
 function onFile(event: Event) { selectedFile.value = (event.target as HTMLInputElement).files?.[0] || null }
 async function previewImport() { await run(async () => { const form = new FormData(); form.append('file', selectedFile.value!); importResult.value = await api('/banks/import/preview', { method: 'POST', body: form }); bankMeta.name = selectedFile.value?.name.replace(/\.xlsx$/i, '') || '' }) }
@@ -215,5 +218,5 @@ async function loadStats() { await run(async () => { stats.value = await api('/s
 async function loadAdmin() { await run(async () => { adminStats.value = await api('/admin/overview') }) }
 function formatTime(value: string | null) { return value ? new Date(value).toLocaleString() : '暂无' }
 
-onMounted(() => { if (authed.value) afterAuth() })
+onMounted(() => { afterAuth() })
 </script>
