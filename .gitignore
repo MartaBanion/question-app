@@ -17,9 +17,9 @@ dist/
 *.spec
 
 # Local data
-data/*.db
-data/*.db-*
-!data/.gitkeep
+**/data/*.db
+**/data/*.db-*
+!**/data/.gitkeep
 
 # OS / editor
 .DS_Store
@@ -29,3 +29,13 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Web frontend
+node_modules/
+web/frontend/dist/
+web/backend/.venv/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+web/frontend/src/*.js
