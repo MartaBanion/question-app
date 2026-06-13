@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.database import init_db
-from app.routers import auth, banks, practice, stats
+from app.routers import admin, auth, banks, practice, stats
 
 app = FastAPI(title=settings.app_name)
 
@@ -29,6 +29,7 @@ def health() -> dict:
 
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 app.include_router(banks.router, prefix="/api")
 app.include_router(practice.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")

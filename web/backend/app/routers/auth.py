@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -19,7 +19,8 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> Token:
     exists = db.scalar(select(User).where(User.username == payload.username))
     if exists:
         raise HTTPException(status_code=400, detail="用户名已存在")
-    user = User(username=payload.username, password_hash=hash_password(payload.password))
+    user_count = db.scalar(select(func.count()).select_from(User)) or 0
+    user = User(username=payload.username, password_hash=hash_password(payload.password), is_admin=user_count == 0)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -31,6 +32,8 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     user = db.scalar(select(User).where(User.username == form.username))
     if not user or not verify_password(form.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+    user.last_login_at = func.now()
+    db.commit()
     return Token(access_token=create_access_token(str(user.id)))
 
 

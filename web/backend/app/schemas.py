@@ -16,6 +16,7 @@ class UserCreate(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
+    is_admin: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -85,3 +86,25 @@ class AnswerResult(BaseModel):
     is_correct: bool
     correct_answer: str
     analysis: str
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    username: str
+    is_admin: bool
+    created_at: str | None = None
+    last_login_at: str | None = None
+    bank_count: int = 0
+    question_count: int = 0
+    answer_count: int = 0
+    accuracy: float = 0
+    wrong_count: int = 0
+
+
+class AdminOverview(BaseModel):
+    user_count: int
+    bank_count: int
+    question_count: int
+    answer_count: int
+    wrong_count: int
+    users: list[AdminUserOut]

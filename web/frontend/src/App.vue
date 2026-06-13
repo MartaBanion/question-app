@@ -25,6 +25,7 @@
         <button :class="{active: page==='wrong'}" @click="page='wrong'; loadWrong()">错题本</button>
         <button :class="{active: page==='favorites'}" @click="page='favorites'; loadFavorites()">收藏</button>
         <button :class="{active: page==='stats'}" @click="page='stats'; loadStats()">学习记录</button>
+        <button v-if="me?.is_admin" :class="{active: page==='admin'}" @click="page='admin'; loadAdmin()">后台管理</button>
       </nav>
       <button class="secondary" @click="doLogout">退出登录</button>
     </aside>
@@ -122,6 +123,39 @@
           <div class="card stat"><strong>{{ stats.accuracy || 0 }}%</strong><span>总体正确率</span></div>
         </div>
       </section>
+
+      <section v-if="page==='admin'">
+        <div class="header"><h1>后台管理</h1><p>查看平台注册用户、题库和学习情况。</p></div>
+        <div class="grid">
+          <div class="card stat"><strong>{{ adminStats.user_count || 0 }}</strong><span>用户总数</span></div>
+          <div class="card stat"><strong>{{ adminStats.bank_count || 0 }}</strong><span>题库总数</span></div>
+          <div class="card stat"><strong>{{ adminStats.question_count || 0 }}</strong><span>题目总数</span></div>
+          <div class="card stat"><strong>{{ adminStats.answer_count || 0 }}</strong><span>答题记录</span></div>
+        </div>
+        <div class="card">
+          <h3>用户情况</h3>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>用户</th><th>角色</th><th>题库</th><th>题目</th><th>做题</th><th>正确率</th><th>错题</th><th>注册时间</th><th>最近登录</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in adminStats.users || []" :key="user.id">
+                <td>{{ user.username }}</td>
+                <td>{{ user.is_admin ? '管理员' : '用户' }}</td>
+                <td>{{ user.bank_count }}</td>
+                <td>{{ user.question_count }}</td>
+                <td>{{ user.answer_count }}</td>
+                <td>{{ user.accuracy }}%</td>
+                <td>{{ user.wrong_count }}</td>
+                <td>{{ formatTime(user.created_at) }}</td>
+                <td>{{ formatTime(user.last_login_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
       <div v-if="error" class="alert error">{{ error }}</div>
     </main>
   </div>
@@ -135,6 +169,7 @@ const authed = ref(Boolean(token()))
 const page = ref('banks')
 const error = ref('')
 const loginForm = reactive({ username: '', password: '' })
+const me = ref<any>(null)
 const banks = ref<any[]>([])
 const selectedFile = ref<File | null>(null)
 const importResult = ref<any>(null)
@@ -148,6 +183,7 @@ const answerResult = ref<any>(null)
 const wrong = ref<any[]>([])
 const favorites = ref<any[]>([])
 const stats = ref<any>({})
+const adminStats = ref<any>({})
 
 const currentQuestion = computed(() => questions.value[currentIndex.value])
 const selectedAnswer = computed(() => currentQuestion.value?.question_type === '多选题' ? [...selected.value].sort().join('') : selected.value[0] || '')
@@ -156,9 +192,11 @@ async function run(fn: () => Promise<void>) {
   error.value = ''
   try { await fn() } catch (e: any) { error.value = e.message }
 }
-async function login() { await run(async () => { const data = await api('/auth/login', { method: 'POST', body: new URLSearchParams({ username: loginForm.username, password: loginForm.password }) }); setToken(data.access_token); authed.value = true; await loadBanks() }) }
-async function register() { await run(async () => { const data = await api('/auth/register', { method: 'POST', body: JSON.stringify(loginForm) }); setToken(data.access_token); authed.value = true; await loadBanks() }) }
-function doLogout() { logout(); authed.value = false }
+async function loadMe() { me.value = await api('/auth/me') }
+async function afterAuth() { authed.value = true; await loadMe(); await loadBanks() }
+async function login() { await run(async () => { const data = await api('/auth/login', { method: 'POST', body: new URLSearchParams({ username: loginForm.username, password: loginForm.password }) }); setToken(data.access_token); await afterAuth() }) }
+async function register() { await run(async () => { const data = await api('/auth/register', { method: 'POST', body: JSON.stringify(loginForm) }); setToken(data.access_token); await afterAuth() }) }
+function doLogout() { logout(); authed.value = false; me.value = null }
 async function loadBanks() { await run(async () => { banks.value = await api('/banks') }) }
 function onFile(event: Event) { selectedFile.value = (event.target as HTMLInputElement).files?.[0] || null }
 async function previewImport() { await run(async () => { const form = new FormData(); form.append('file', selectedFile.value!); importResult.value = await api('/banks/import/preview', { method: 'POST', body: form }); bankMeta.name = selectedFile.value?.name.replace(/\.xlsx$/i, '') || '' }) }
@@ -174,6 +212,8 @@ async function toggleFavorite(questionId: number) { await run(async () => { cons
 async function loadWrong() { await run(async () => { wrong.value = await api('/practice/wrong') }) }
 async function loadFavorites() { await run(async () => { favorites.value = await api('/practice/favorites') }) }
 async function loadStats() { await run(async () => { stats.value = await api('/stats/overview') }) }
+async function loadAdmin() { await run(async () => { adminStats.value = await api('/admin/overview') }) }
+function formatTime(value: string | null) { return value ? new Date(value).toLocaleString() : '暂无' }
 
-onMounted(() => { if (authed.value) loadBanks() })
+onMounted(() => { if (authed.value) afterAuth() })
 </script>
